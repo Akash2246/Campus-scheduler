@@ -277,9 +277,21 @@ function allClashes(){const out=[];slots.forEach((a,i)=>slots.slice(i+1).forEach
 function ttHTML(m,bad){
  const secs=[...new Set(slots.map(s=>s.section).filter(Boolean))].sort();
  if(flt===null)flt=m.role==="student"&&secs.includes(m.section)?m.section:m.role==="faculty"?"mine":"all";
- const list=slots.filter(s=>flt==="all"||(flt==="mine"?s.faculty===m.name:s.section===flt));
+ const list=slots.filter(s=>m.role==="student" ? s.section===m.section : (flt==="all"||(flt==="mine"?s.faculty===m.name:s.section===flt)));
+
+ const now=new Date(), dayIdx=(now.getDay()+6)%7, timeStr=now.toTimeString().slice(0,5);
+ const live=list.find(s=>s.day===dayIdx && timeStr>=s.start && timeStr<s.end);
+ let liveBanner=live?`<div style="background:var(--ok);color:#fff;padding:8px 12px;border-radius:8px;margin-bottom:12px;font-weight:600;">🔴 LIVE NOW: ${esc(live.course)} (${live.start}–${live.end}) in Room ${esc(live.room)}</div>`:"";
+
  const opts=[["all","Everything"],...(m.role!=="student"?[["mine","My classes"]]:[]),...secs.map(s=>[s,"Section "+s])];
- let h=`<div class="bar"><label>View<select data-a="flt">${opts.map(o=>`<option value="${esc(o[0])}"${o[0]===flt?" selected":""}>${esc(o[1])}</option>`).join("")}</select></label></div><div class="tt"><div class="ttin"><div></div>${DAYS.map(d=>`<div class="dh">${d}</div>`).join("")}<div class="times">${Array.from({length:H1-H0},(_,i)=>`<div>${String(H0+i).padStart(2,"0")}:00</div>`).join("")}</div>`;
+ let h=liveBanner;
+ if(m.role!=="student"){
+  h+=`<div class="bar"><label>View<select data-a="flt">${opts.map(o=>`<option value="${esc(o[0])}"${o[0]===flt?" selected":""}>${esc(o[1])}</option>`).join("")}</select></label></div>`;
+ } else {
+  h+=`<div class="bar"><span><b>My Section (${esc(m.section||"N/A")}) Timetable</b></span></div>`;
+ }
+
+ h+=`<div class="tt"><div class="ttin"><div></div>${DAYS.map(d=>`<div class="dh">${d}</div>`).join("")}<div class="times">${Array.from({length:H1-H0},(_,i)=>`<div>${String(H0+i).padStart(2,"0")}:00</div>`).join("")}</div>`;
  for(let d=0;d<5;d++){h+='<div class="col">';list.filter(s=>s.day===d).forEach(s=>{const top=(mins(s.start)-H0*60)/60*ROW,ht=Math.max(28,(mins(s.end)-mins(s.start))/60*ROW-2);h+=`<button class="blk${bad.has(s.id)?" bad":""}${sel===s.id?" sel":""}" data-a="sel" data-id="${s.id}" style="--c:${col(s.course)};top:${top}px;height:${ht}px"><b>${esc(s.course)}</b>${s.start}–${s.end}<br>${esc(s.room)}</button>`});h+="</div>"}
  h+="</div></div>";
  const s=slots.find(x=>x.id===sel);
@@ -288,25 +300,6 @@ function ttHTML(m,bad){
  if(staff())h+=`<form id="sf"><h2>Add a class</h2><div class="row"><label>Course<input name="course" required maxlength="40"></label><label>Section<input name="section" required maxlength="15" placeholder="CSE-A"></label><label>Faculty<input name="faculty" required maxlength="40" value="${esc(m.role==="faculty"?m.name:"")}" ${m.role==="faculty"?"readonly":""}></label></div><div class="row"><label>Day<select name="day">${DAYS.map((d,i)=>`<option value="${i}">${d}</option>`).join("")}</select></label><label>Start<input type="time" name="start" value="09:00" required></label><label>End<input type="time" name="end" value="10:00" required></label><label>Room<input name="room" required maxlength="20"></label></div><div class="err" role="alert">${esc(err)}</div><button class="btn">Add class</button></form>`;
  return h;
 }
-function taskHTML(m){
- const vis=tasks.filter(t=>t.scope==="personal"?t.by===me.id:(m.role!=="student"||!t.section||t.section===m.section)).sort((a,b)=>(done[a.id]?1:0)-(done[b.id]?1:0)||a.due.localeCompare(b.due));
- let h=vis.length?"<ul>"+vis.map(t=>{const n=dd(t.due),dn=done[t.id];const l=dn?"Done":n<0?"Overdue by "+-n+(n===-1?" day":" days"):n===0?"Due today":n===1?"Due tomorrow":"Due in "+n+" days";return `<li class="it${dn?" done":""}"><label style="display:flex;gap:10px;align-items:center;color:inherit;font-size:15px"><input class="chk" type="checkbox" data-a="done" data-id="${t.id}"${dn?" checked":""}><span><span class="t">${esc(t.title)}</span><br><span class="meta">${esc(t.course)}${t.scope==="class"?" · from "+esc(t.byName)+(t.section?", section "+esc(t.section):""):" · personal"}</span></span></label><span><span class="due ${dn?"":n<0?"late":n<=1?"soon":""}">${l}</span> ${(t.by===me.id||m.role==="admin")?`<button class="btn ghost sm" data-a="rmtask" data-id="${t.id}" aria-label="Delete task">Delete</button>`:""}</span>${extra(t,m)}</li>`}).join("")+"</ul>":'<p class="empty">No tasks yet. Add a deadline below.</p>';
- h+=`<form id="tf"><h2>${staff()?"Post a class deadline":"Add a personal task"}</h2><div class="row"><label>Task<input name="title" required maxlength="80"></label><label>Course<input name="course" required maxlength="40"></label>${staff()?'<label>Section (optional)<input name="section" maxlength="15"></label>':""}<label>Due date<input type="date" name="due" required></label></div><button class="btn">${staff()?"Post deadline":"Add task"}</button></form>`;
- return h;
-}
-function adminHTML(){return monHTML()+chartsHTML()+adminOld()+repHTML()}
-function adminOld(){
- const cl=allClashes();
- let h=`<h2>Timetable conflicts</h2>`+(cl.length?cl.map(c=>`<div class="warn"><b>${esc(c.a.course)}</b> (${esc(c.a.section)}) and <b>${esc(c.b.course)}</b> (${esc(c.b.section)}) overlap on ${DAYS[c.a.day]}: same ${esc(c.why.join(", "))}.</div>`).join(""):'<p class="empty">No conflicts across '+slots.length+" classes.</p>");
- h+=`<h2 style="margin-top:18px">People</h2><ul>`+members.map(p=>`<li class="it"><span><span class="t">${esc(p.name)}</span><span class="badge">${esc(p.role)}</span>${p.status==="pending"?'<span class="badge" style="color:var(--danger);border-color:var(--danger)">awaiting approval</span>':""}<br><span class="meta">${p.section?"Section "+esc(p.section):""}</span></span><span>${p.status==="pending"?`<button class="btn sm" data-a="approve" data-id="${p.id}">Approve</button> `:""}<select data-a="setrole" data-id="${p.id}" aria-label="Role">${["student","faculty","admin"].map(r=>`<option${r===p.role?" selected":""}>${r}</option>`).join("")}</select> ${p.id!==me.id?`<button class="btn ghost sm" data-a="rmmem" data-id="${p.id}">Remove</button>`:""}</span></li>`).join("")+"</ul>";
- return h;
-}
-function render(){
- const a=document.activeElement;
- if(a&&/INPUT|SELECT/.test(a.tagName)&&$("#app").contains(a)){dirty=true;return}
- const app=$("#app");
- if(!loaded)return;
- const m=M();
  if(!m){
   if(me.isOwner)return;
   app.innerHTML=`<div class="panel gate"><h1>Campus Scheduler</h1><p class="meta">Create your profile to see timetables and deadlines.</p><form id="su"><label>Your name<input name="name" required maxlength="40" value="${esc(me.name)}"></label><label>I am a<select name="role"><option value="student">Student</option><option value="faculty">Faculty member</option></select></label><label>Section (students)<input name="section" maxlength="15" placeholder="CSE-A"></label><button class="btn">Create profile</button></form></div>`;return;
