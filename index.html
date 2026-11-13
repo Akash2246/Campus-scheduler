@@ -303,7 +303,7 @@ function ttHTML(m,bad){
  if(!m){
   if(me.isOwner)return;
   app.innerHTML=`<div class="panel gate"><h1>Campus Scheduler</h1><p class="meta">Create your profile to see timetables and deadlines.</p><form id="su"><label>Your name<input name="name" required maxlength="40" value="${esc(me.name)}"></label><label>I am a<select name="role"><option value="student">Student</option><option value="faculty">Faculty member</option></select></label><label>Section (students)<input name="section" maxlength="15" placeholder="CSE-A"></label><button class="btn">Create profile</button></form></div>`;return;
- }
+ 
  if(m.status==="pending"){app.innerHTML='<div class="panel gate"><h1>Waiting for approval</h1><p class="meta">An admin needs to approve your faculty account. This page updates when they do.</p><button class="btn sm" data-a="out">Sign out</button></div>';return}
  const bad=new Set();allClashes().forEach(c=>{bad.add(c.a.id);bad.add(c.b.id)});
  const un=vn(m).filter(n=>n.at>seen&&n.by!==me.id).length;const tabs=[["tt","Timetable"],["tk","Tasks and deadlines"],["pg","Progress"],["at","Attendance"],["nt","Notifications"+(un?" ("+un+" new)":"")],...(m.role==="admin"?[["ad","Admin"+(bad.size?" ("+bad.size+" clashing)":"")]]:[])];
